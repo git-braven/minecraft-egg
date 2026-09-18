@@ -1,0 +1,55 @@
+{
+    "_comment": "Custom Vanilla Minecraft egg. Import this via Panel > Admin > Nests > Import Egg.",
+    "meta": {
+        "version": "PTDL_v2",
+        "update_url": null
+    },
+    "exported_at": "2026-09-18T00:00:00+00:00",
+    "name": "Minecraft: Vanilla (Custom)",
+    "author": "you@example.com",
+    "description": "Vanilla Minecraft server running on a self-built Docker image.",
+    "features": [
+        "java_version",
+        "pid_limit"
+    ],
+    "docker_images": {
+        "Custom Image": "ghcr.io/git-braven/minecraft-egg:latest"
+    },
+    "file_denylist": [],
+    "startup": "java -Xms128M -Xmx{{SERVER_MEMORY}}M -Dterminal.jline=false -Dterminal.ansi=true -jar {{SERVER_JARFILE}} nogui",
+    "config": {
+        "files": "{\r\n    \"server.properties\": {\r\n        \"parser\": \"properties\",\r\n        \"find\": {\r\n            \"server-ip\": \"0.0.0.0\",\r\n            \"enable-query\": \"true\",\r\n            \"server-port\": \"{{server.build.default.port}}\",\r\n            \"query.port\": \"{{server.build.default.port}}\"\r\n        }\r\n    }\r\n}",
+        "startup": "{\r\n    \"done\": \")! For help, type \"\r\n}",
+        "logs": "{}",
+        "stop": "stop"
+    },
+    "scripts": {
+        "installation": {
+            "script": "#!/bin/bash\r\n# Pterodactyl Vanilla Minecraft installation script\r\n#\r\n# This runs inside a throwaway container built FROM the same base image,\r\n# with /mnt/server mounted to what becomes /home/container at runtime.\r\napt-get update\r\napt-get install -y curl jq\r\n\r\ncd /mnt/server || exit 1\r\n\r\nif [ -z \"${MINECRAFT_VERSION}\" ] || [ \"${MINECRAFT_VERSION}\" == \"latest\" ]; then\r\n    MINECRAFT_VERSION=$(curl -sSL https://launchermeta.mojang.com/mc/game/version_manifest.json | jq -r '.latest.release')\r\nfi\r\n\r\necho \"Installing Minecraft version: ${MINECRAFT_VERSION}\"\r\n\r\nMANIFEST_URL=$(curl -sSL https://launchermeta.mojang.com/mc/game/version_manifest.json | jq -r --arg VERSION \"$MINECRAFT_VERSION\" '.versions[] | select(.id == $VERSION) | .url')\r\n\r\nif [ -z \"$MANIFEST_URL\" ]; then\r\n    echo \"Could not find that Minecraft version in Mojang's manifest.\"\r\n    exit 1\r\nfi\r\n\r\nDOWNLOAD_URL=$(curl -sSL \"$MANIFEST_URL\" | jq -r '.downloads.server.url')\r\ncurl -o \"${SERVER_JARFILE:-server.jar}\" \"$DOWNLOAD_URL\"\r\n\r\necho \"eula=true\" > eula.txt\r\n\r\necho \"Install complete.\"",
+            "container": "ghcr.io/git-braven/minecraft-egg:latest",
+            "entrypoint": "bash"
+        }
+    },
+    "variables": [
+        {
+            "name": "Server Jar File",
+            "description": "The name of the server jarfile to run the server with.",
+            "env_variable": "server.jar",
+            "default_value": "server.jar",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|max:20",
+            "field_type": "text"
+        },
+        {
+            "name": "Minecraft Version",
+            "description": "The version of Minecraft to download and install. Use 'latest' for the newest release.",
+            "env_variable": "latest",
+            "default_value": "latest",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|max:20",
+            "field_type": "text"
+        }
+    ]
+}
